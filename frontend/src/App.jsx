@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const BACKEND_URL = "https://web-production-ad828e.up.railway.app"
+const BACKEND_URL = "https://web-production-ad.up.railway.app"
 
 export default function Dashboard() {
   const [drafts, setDrafts] = useState([]);
