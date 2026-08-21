@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 
+const BACKEND_URL = "https://web-production-ad828e.up.railway.app"
+
 export default function Dashboard() {
   const [drafts, setDrafts] = useState([]);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [editedText, setEditedText] = useState("");
 
+
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/drafts")
+    fetch(`${BACKEND_URL}/api/drafts`)
       .then((res) => res.json())
       .then((data) => {
         setDrafts(data);
@@ -21,21 +24,25 @@ export default function Dashboard() {
   const handleSend = async () => {
     if (!selectedDraft) return;
 
-    const res = await fetch("http://127.0.0.1:8000/api/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draft_id: selectedDraft.id,
-        recipient: selectedDraft.sender_email,
-        final_content: editedText,
-        subject: "Re: Your Inquiry",
-      }),
-    });
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draft_id: selectedDraft.id,
+          recipient: selectedDraft.sender_email,
+          final_content: editedText,
+          subject: "Re: Your Inquiry",
+        }),
+      });
 
-    if (res.ok) {
-      alert("Email sent!");
-      setDrafts(drafts.filter((d) => d.id !== selectedDraft.id));
-      setSelectedDraft(null);
+      if (res.ok) {
+        alert("Email sent!");
+        setDrafts(drafts.filter((d) => d.id !== selectedDraft.id));
+        setSelectedDraft(null);
+      }
+    } catch (err) {
+      console.error("Error sending draft:", err);
     }
   };
 
