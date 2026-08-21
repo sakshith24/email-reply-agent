@@ -1,14 +1,19 @@
 import os
 import imaplib
 import email
+import smtplib
 from email.header import decode_header
 from dotenv import load_dotenv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Load environment variables from .env
 load_dotenv()
 
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+
+
 
 def connect_gmail():
     """Connects to Gmail via IMAP using the App Password."""
@@ -60,6 +65,31 @@ def fetch_latest_unread_emails(limit=5):
 
     mail.logout()
     return fetched_emails
+
+def send_email_via_gmail(to: str, body: str, subject: str = "Re: Course Inquiry"):
+    """Sends an outgoing email using Gmail's SMTP server."""
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = GMAIL_USER
+        msg["To"] = to
+        msg["Subject"] = subject
+
+        msg.attach(MIMEText(body, "plain"))
+
+        # Connect to Gmail SMTP server over TLS
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        
+        # Send message
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"Successfully sent email to {to} via SMTP!")
+        return True
+    except Exception as e:
+        print(f"Failed to send email via SMTP: {e}")
+        raise e
 
 if __name__ == "__main__":
     fetch_latest_unread_emails()

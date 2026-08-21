@@ -7,8 +7,65 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# def get_supabase_client() -> Client:
+#     if not SUPABASE_URL or not SUPABASE_KEY:
+#         raise ValueError("Supabase URL and Key must be set in .env file")
+#     client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+#     return client
+
+# supabase = get_supabase_client()
+
+# def get_pending_drafts():
+#     """Fetch all email drafts awaiting review"""
+#     response = supabase.table("email_drafts").select("*").eq("status", "pending_review").execute()
+#     return response.data
+
+# def update_sent_draft(draft_id: str, final_content: str):
+#     """Update a draft status to 'sent' and save the edited text"""
+#     response = (
+#         supabase.table("email_drafts")
+#         .update({
+#             "final_sent_content": final_content,
+#             "status": "sent"
+#         })
+#         .eq("id", draft_id)
+#         .execute()
+#     )
+#     return response.data
+
+# def save_draft_to_db(sender: str, query: str, context: str, ai_draft: str):
+#     """Save newly generated AI draft to Supabase"""
+#     response = supabase.table("email_drafts").insert({
+#         "sender_email": sender,
+#         "user_query": query,
+#         "retrieved_context": context,
+#         "ai_draft_content": ai_draft,
+#         "status": "pending_review"
+#     }).execute()
+#     return response.data
+
 def get_supabase_client() -> Client:
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise ValueError("Supabase URL and Key must be set in .env file")
-    client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    return client
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase = get_supabase_client()
+
+def get_pending_drafts():
+    response = supabase.table("email_drafts").select("*").eq("status", "pending_review").execute()
+    return response.data
+
+def save_draft_to_db(sender: str, query: str, context: str, ai_draft: str):
+    response = supabase.table("email_drafts").insert({
+        "sender_email": sender,
+        "user_query": query,
+        "retrieved_context": context,
+        "ai_draft_content": ai_draft,
+        "status": "pending_review"
+    }).execute()
+    return response.data
+
+def update_sent_draft(draft_id: str, final_content: str):
+    response = supabase.table("email_drafts").update({
+        "final_sent_content": final_content,
+        "status": "sent"
+    }).eq("id", draft_id).execute()
+    return response.data
