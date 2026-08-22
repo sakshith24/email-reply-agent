@@ -77,7 +77,7 @@ def send_email_via_gmail(to: str, body: str, subject: str = "Re: Course Inquiry"
         msg.attach(MIMEText(body, "plain"))
 
         # Connect to Gmail SMTP server over TLS
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.gmail.com", 465)
         server.starttls()
         server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
         
