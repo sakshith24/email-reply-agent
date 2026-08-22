@@ -1,24 +1,37 @@
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI, HTTPException, Header ,Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
-# Internal imports from your existing modules
+
 from app.database.supabase import get_pending_drafts, update_sent_draft, save_draft_to_db
 from app.knowledge.retrieval import retrieve_relevant_knowledge  # Adjust to match your retrieval function name
 from app.gmail.service import send_email_via_gmail
 
 app = FastAPI(title="Email Reply Agent API")
 
-# Enable CORS so your Vercel frontend can talk to Railway backend
+origins = [
+    "https://email-reply-agent-lac.vercel.app/",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
+# Enabling CORS for  Vercel frontend and Railway backend to talk
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials= True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Pydantic Data Models ---
+API_KEY = os.getenv("API_SECRET_KEY", "my-default-secret-key")
+
+def verify_api_key(x_api_key: str = Header(None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401 ,detail= "Unauthorized :Invalid API key")
+    return x_api_key
+
 class SendEmailPayload(BaseModel):
     draft_id: str
     recipient: EmailStr
@@ -29,8 +42,6 @@ class GenerateDraftPayload(BaseModel):
     sender: EmailStr
     query: str
 
-
-# --- API Routes ---
 @app.get("/")
 def home():
     return {"status": "online", "message": "Email Reply Agent API is running!"}
@@ -53,13 +64,8 @@ def create_draft(payload: GenerateDraftPayload):
     3. Saves the initial draft into Supabase
     """
     try:
-        # Step 1: Get relevant vector context
         context = retrieve_relevant_knowledge(payload.query)
-        
-        # Step 2: Draft AI response (replace with your Phase 4 generation function)
         ai_draft = f"Hello,\n\nBased on your query regarding '{payload.query}', here is the information:\n{context}\n\nBest regards,"
-        
-        # Step 3: Save to Supabase tracking table
         record = save_draft_to_db(
             sender=payload.sender,
             query=payload.query,
@@ -71,21 +77,18 @@ def create_draft(payload: GenerateDraftPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/send")
+@app.post("/api/send", dependencies= [Depends(verify_api_key)])
 def approve_and_send(payload: SendEmailPayload):
     """
     1. Sends the human-approved/edited email via SMTP
     2. Updates Supabase status to 'sent' and logs final_sent_content
     """
     try:
-        # Step 1: Send outgoing email via Gmail SMTP
         send_email_via_gmail(
             to=payload.recipient, 
             body=payload.final_content, 
             subject=payload.subject
         )
-        
-        # Step 2: Log final sent version in Supabase
         update_sent_draft(
             draft_id=payload.draft_id, 
             final_content=payload.final_content

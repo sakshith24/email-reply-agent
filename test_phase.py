@@ -15,7 +15,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 supabase : Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-genai.configure(api_key="GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 def retrieve_relevant_knowledge(query: str, top_k: int = 3):
     # Ensure query is encoded properly as a list or string via model.encode
@@ -28,73 +28,40 @@ def retrieve_relevant_knowledge(query: str, top_k: int = 3):
     
     return response.data if response.data else []
 
-def generate_email_reply_openrouter(user_email_text: str) -> str:
+def generate_email_reply_with_retry(user_email_text: str) -> str:
     docs = retrieve_relevant_knowledge(user_email_text)
     
     context_str = ""
     for doc in docs:
         context_str += f"- Course: {doc.get('course_name')}\n"
-        context_str += f"  Description: {doc.get('course_description')}\n\n"
+        context_str += f"  Description: {doc.get('course_description')}\n"
+        context_str += f"  Content: {doc.get('content')}\n\n"
     
-    prompt = f"Context:\n{context_str}\n\nInquiry: {user_email_text}\n\nDraft a clear, professional reply:"
+    prompt = f"""
+ You are a helpful email reply assistant for an educational platform.
+ Answer the user's email inquiry politely using ONLY the context provided below.
 
-    openrouter_key = os.getenv("OPENROUTER_API_KEY") # Ensure this is in your .env file
-    
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {openrouter_key}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "openrouter/free",
-            "messages": [{"role": "user", "content": prompt}]
-        }
-    )
-    
-    data = response.json()
-    
-    # Check if OpenRouter returned an error response
-    if "error" in data:
-        print(f"OpenRouter Error: {data['error']}")
-        raise Exception(f"OpenRouter API Failure: {data['error'].get('message')}")
-        
-    return data['choices'][0]['message']['content']
+ Retrieved Context from Knowledge Base:
+ {context_str if context_str else "No specific course details found."}
 
-# def generate_email_reply_with_retry(user_email_text: str) -> str:
-#     docs = retrieve_relevant_knowledge(user_email_text)
+ User Email Inquiry:
+ "{user_email_text}"
+
+ Draft a clear, professional email reply:
+ """
+
+    model = genai.GenerativeModel("gemini-3.6-flash")
     
-#     context_str = ""
-#     for doc in docs:
-#         context_str += f"- Course: {doc.get('course_name')}\n"
-#         context_str += f"  Description: {doc.get('course_description')}\n"
-#         context_str += f"  Content: {doc.get('content')}\n\n"
-    
-#     prompt = f"""
-# You are a helpful email reply assistant for an educational platform.
-# Answer the user's email inquiry politely using ONLY the context provided below.
-
-# Retrieved Context from Knowledge Base:
-# {context_str if context_str else "No specific course details found."}
-
-# User Email Inquiry:
-# "{user_email_text}"
-
-# Draft a clear, professional email reply:
-# """
-
-#     model = genai.GenerativeModel("gemini-2.5-flash")
-    
-#     # Retry loop to handle 429 rate limit errors
-#     for attempt in range(3):
-#         try:
-#             response = model.generate_content(prompt)
-#             return response.text
-#         except exceptions.ResourceExhausted:
-#             print(f"Rate limit hit! Waiting 16 seconds before retry {attempt + 1}/3...")
-#             time.sleep(16)
+    # Retry loop to handle 429 rate limit errors
+    for attempt in range(3):
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except exceptions.ResourceExhausted:
+            print(f"Rate limit hit! Waiting 16 seconds before retry {attempt + 1}/3...")
+            time.sleep(16)
             
-#     raise Exception("Failed to generate response after 3 retries due to rate limits.")
+    raise Exception("Failed to generate response after 3 retries due to rate limits.")
 
 if __name__ == "__main__":
     sample_email = "Hi, what are the prerequisites for the advanced Python course?"
@@ -102,7 +69,7 @@ if __name__ == "__main__":
     print(f"Incoming Email: {sample_email}\n")
     
     # Call the new function here:
-    reply = generate_email_reply_openrouter(sample_email)
+    reply = generate_email_reply_with_retry(sample_email)
     print("--- Generated Reply Draft ---\n")
     print(reply)
         

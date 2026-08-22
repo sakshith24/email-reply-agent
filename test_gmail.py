@@ -1,9 +1,9 @@
-from app.gmail.service import get_unread_emails
+from app.gmail.service import fetch_latest_unread_emails
 import json
 
 def test_fetch_emails():
     print("Fetching unread emails...")
-    emails = get_unread_emails()
+    emails = fetch_latest_unread_emails()
     if emails:
         print(f"Successfully fetched {len(emails)} unread emails.")
         for email in emails:

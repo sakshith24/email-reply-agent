@@ -45,7 +45,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json","x-api-key": import.meta.env.VITE_API_SECRET_KEY || "superkey123"},
         body: JSON.stringify({
           draft_id: selectedDraft.id,
           recipient: selectedDraft.sender_email,
