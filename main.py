@@ -7,6 +7,11 @@ from pydantic import BaseModel, EmailStr
 from app.database.supabase import get_pending_drafts, update_sent_draft, save_draft_to_db
 from app.knowledge.retrieval import retrieve_relevant_knowledge  # Adjust to match your retrieval function name
 from app.gmail.service import send_email_via_gmail
+from resend import Resend
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Email Reply Agent API")
 
@@ -77,18 +82,29 @@ def create_draft(payload: GenerateDraftPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+resend = Resend(api_key=os.getenv("RESEND_API_KEY"))
+
 @app.post("/api/send", dependencies= [Depends(verify_api_key)])
 def approve_and_send(payload: SendEmailPayload):
     """
-    1. Sends the human-approved/edited email via SMTP
+    1. Sends the human-approved/edited email via Resend API
     2. Updates Supabase status to 'sent' and logs final_sent_content
     """
     try:
-        send_email_via_gmail(
-            to=payload.recipient, 
-            body=payload.final_content, 
-            subject=payload.subject
+        # Removed direct smtplib call
+        # send_email_via_gmail(
+        #     to=payload.recipient, 
+        #     body=payload.final_content, 
+        #     subject=payload.subject
+        # )
+
+        resend.emails.send(
+            from_="onboarding@resend.dev", # Replace with your verified Resend domain
+            to=payload.recipient,
+            subject=payload.subject,
+            html=f"<p>{payload.final_content}</p>"
         )
+
         update_sent_draft(
             draft_id=payload.draft_id, 
             final_content=payload.final_content
@@ -96,4 +112,5 @@ def approve_and_send(payload: SendEmailPayload):
         
         return {"status": "success", "message": "Email sent and draft status updated."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to send email via Resend: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {e}")
