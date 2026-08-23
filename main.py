@@ -13,6 +13,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+resend.api_key=os.getenv("RESEND_API_KEY")
+
 app = FastAPI(title="Email Reply Agent API")
 
 origins = [
@@ -98,12 +100,12 @@ def approve_and_send(payload: SendEmailPayload):
         #     subject=payload.subject
         # )
 
-        resend.emails.send(
-            from_="onboarding@resend.dev", # Replace with your verified Resend domain
-            to=payload.recipient,
-            subject=payload.subject,
-            html=f"<p>{payload.final_content}</p>"
-        )
+        resend.Emails.send({
+            "from": "onboarding@resend.dev",
+            "to": [payload.recipient],  # Must be inside a list
+            "subject": payload.subject,
+            "html": f"<p>{payload.final_content}</p>"
+        })
 
         update_sent_draft(
             draft_id=payload.draft_id, 
