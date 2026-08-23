@@ -55,7 +55,13 @@ export default function Dashboard() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to send email");
+        const errorText = await res.text();
+
+        console.error("Backend error:", errorText);
+
+        throw new Error(
+          `Failed to send email (${res.status}): ${errorText}`
+        );
       }
 
       toast.success("Email sent!");
