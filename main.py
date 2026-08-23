@@ -13,7 +13,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-resend.api_key=os.getenv("RESEND_API_KEY")
+# resend.api_key=os.getenv("RESEND_API_KEY")
 
 app = FastAPI(title="Email Reply Agent API")
 
@@ -84,8 +84,6 @@ def create_draft(payload: GenerateDraftPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-resend.api_key=os.getenv("RESEND_API_KEY")
-
 @app.post("/api/send", dependencies= [Depends(verify_api_key)])
 def approve_and_send(payload: SendEmailPayload):
     """
@@ -99,10 +97,11 @@ def approve_and_send(payload: SendEmailPayload):
         #     body=payload.final_content, 
         #     subject=payload.subject
         # )
+        resend.api_key = os.getenv("RESEND_API_KEY")
 
         resend.Emails.send({
             "from": "onboarding@resend.dev",
-            "to": [payload.recipient],  # Must be inside a list
+            "to": ["shettysakshith3@gmail.com"],  # Must be inside a list
             "subject": payload.subject,
             "html": f"<p>{payload.final_content}</p>"
         })
