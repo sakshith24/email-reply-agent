@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 from app.database.supabase import get_pending_drafts, update_sent_draft, save_draft_to_db
 from app.knowledge.retrieval import retrieve_relevant_knowledge  # Adjust to match your retrieval function name
 from app.gmail.service import send_email_via_gmail
-from resend import Resend
+import resend
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -82,7 +82,7 @@ def create_draft(payload: GenerateDraftPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-resend = Resend(api_key=os.getenv("RESEND_API_KEY"))
+resend.api_key=os.getenv("RESEND_API_KEY")
 
 @app.post("/api/send", dependencies= [Depends(verify_api_key)])
 def approve_and_send(payload: SendEmailPayload):
