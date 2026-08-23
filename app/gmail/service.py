@@ -18,7 +18,7 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 def connect_gmail():
     """Connects to Gmail via IMAP using the App Password."""
     try:
-        # Connect to Gmail's IMAP server over SSL
+       
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
         print("Successfully authenticated with Gmail!")
@@ -34,11 +34,11 @@ def fetch_latest_unread_emails(limit=5):
         return []
 
     mail.select("inbox")
-    # Search for UNSEEN (unread) emails
+    # Searching for UNSEEN emails
     status, messages = mail.search(None, "UNSEEN")
     
     email_ids = messages[0].split()
-    latest_ids = email_ids[-limit:]  # Get the most recent ones
+    latest_ids = email_ids[-limit:]  # to get latest 
     
     fetched_emails = []
 
@@ -78,7 +78,7 @@ def send_email_via_gmail(to: str, body: str, subject: str = "Re: Course Inquiry"
 
         # Connect to Gmail SMTP server over TLS
         server = smtplib.SMTP("smtp.gmail.com", 465)
-        server.starttls()
+        # server.starttls()
         server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
         
         # Send message
