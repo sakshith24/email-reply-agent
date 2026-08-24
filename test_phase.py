@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 import time
 from google.api_core import exceptions
+from openai import OpenAI
 import requests
 
 load_dotenv()
@@ -12,10 +13,12 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 supabase : Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 genai.configure(api_key=GEMINI_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 def retrieve_relevant_knowledge(query: str, top_k: int = 3):
     # Ensure query is encoded properly as a list or string via model.encode
@@ -27,6 +30,14 @@ def retrieve_relevant_knowledge(query: str, top_k: int = 3):
     ).execute()
     
     return response.data if response.data else []
+def generate_email_reply_with_openai(prompt:str) -> str:
+    """Fallback function if gemini fails to respond"""
+    print("\n[Fallback] Gemini failed . Attempting generation using OpenAI")
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":prompt}],
+    )
+    return response.choices[0].message.content
 
 def generate_email_reply_with_retry(user_email_text: str) -> str:
     docs = retrieve_relevant_knowledge(user_email_text)
@@ -59,9 +70,14 @@ def generate_email_reply_with_retry(user_email_text: str) -> str:
             return response.text
         except exceptions.ResourceExhausted:
             print(f"Rate limit hit! Waiting 16 seconds before retry {attempt + 1}/3...")
-            time.sleep(16)
+            time.sleep(10)
             
-    raise Exception("Failed to generate response after 3 retries due to rate limits.")
+        raise Exception("Failed to generate response after 3 retries due to rate limits.")
+    try:
+        return generate_email_reply_with_openai(prompt)
+    except Exception as fallback_err:
+        raise Exception(f"Both Gemini and OpenAI failed to generate a response. Error: {fallback_err}"
+        )
 
 if __name__ == "__main__":
     sample_email = "Hi, what are the prerequisites for the advanced Python course?"

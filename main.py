@@ -7,6 +7,7 @@ from pydantic import BaseModel, EmailStr
 from app.database.supabase import get_pending_drafts, update_sent_draft, save_draft_to_db
 from app.knowledge.retrieval import retrieve_relevant_knowledge  # Adjust to match your retrieval function name
 from app.gmail.service import send_email_via_gmail
+from app.services import llm
 import resend
 import logging
 
@@ -72,14 +73,16 @@ def create_draft(payload: GenerateDraftPayload):
     """
     try:
         context = retrieve_relevant_knowledge(payload.query)
-        ai_draft = f"Hello,\n\nBased on your query regarding '{payload.query}', here is the information:\n{context}\n\nBest regards,"
+        # ai_draft = f"Hello,\n\nBased on your query regarding '{payload.query}', here is the information:\n{context}\n\nBest regards,"
+        ai_draft,provider_used = llm.generate_email_reply(payload.query)
+        logger.info(f"Successfully generated draft using provider: {provider_used}")
         record = save_draft_to_db(
             sender=payload.sender,
             query=payload.query,
             context=str(context),
             ai_draft=ai_draft
         )
-        return {"status": "success", "draft": record}
+        return {"status": "success", "provider_used" : provider_used, "draft": record}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
